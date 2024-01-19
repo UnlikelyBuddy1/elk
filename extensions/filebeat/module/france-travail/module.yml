@@ -1,0 +1,4 @@
+- name: log
+  title: france travail
+  description: custom module to process france travail logs
+  short_config: false

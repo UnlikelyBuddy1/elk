@@ -1,0 +1,12 @@
+{
+        "description": "Pipeline for parsing france travail logs",
+        "processors": [
+            {
+                "json": {
+                    "field": "log",
+                    "target_field": "json"
+                }
+            }
+        ]
+    }
+    

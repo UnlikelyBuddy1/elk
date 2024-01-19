@@ -1,0 +1,5 @@
+- type: log
+  paths:
+    - ../data/log-*.log
+  processors:
+    - add_locale: ~
