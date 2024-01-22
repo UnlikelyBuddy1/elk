@@ -118,7 +118,7 @@ func generateTimeRangeQuery(runtime *RuntimeConfig) (string, error) {
 	return queryParams, nil
 }
 
-func fetch(config *Config, runtime *RuntimeConfig) (map[string]interface{}, error) {
+func fetch(config *Config, runtime *RuntimeConfig) ([]JobOffer, error) {
 	client := &http.Client{}
 	timeRange, err := generateTimeRangeQuery(runtime)
 	if err != nil {
@@ -129,6 +129,7 @@ func fetch(config *Config, runtime *RuntimeConfig) (map[string]interface{}, erro
 		return nil, err
 	}
 	req.Header.Add("Authorization", runtime.BearerToken)
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
@@ -137,14 +138,20 @@ func fetch(config *Config, runtime *RuntimeConfig) (map[string]interface{}, erro
 		return nil, fmt.Errorf("unauthorized")
 	}
 	defer resp.Body.Close()
-	// Debugging: print status code and response body
-	var response map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+	var apiResponse APIResponse
+	if err := json.NewDecoder(resp.Body).Decode(&apiResponse); err != nil {
 		return nil, err
+	}
+	// Transform each JobOffer
+	for i, offer := range apiResponse.Resultats {
+		apiResponse.Resultats[i].LieuTravail.Location = Location{
+			Lat: offer.LieuTravail.Latitude,
+			Lon: offer.LieuTravail.Longitude,
+		}
 	}
 	runtime.LastBeat = time.Now().UTC().Format(time.RFC3339)
 	storeRuntimeConfig(runtime, "./runtime.config.json")
-	return response, nil
+	return apiResponse.Resultats, nil
 }
 
 func writeToFile(data interface{}, baseDir string) error {
@@ -226,4 +233,72 @@ func main() {
 		fmt.Println("Error writing to log file:", err)
 		os.Exit(1)
 	}
+}
+
+type JobOffer struct {
+	AccessibleTH                bool         `json:"accessibleTH"`
+	Agence                      Agence       `json:"agence"`
+	Alternance                  bool         `json:"alternance"`
+	Appellationlibelle          string       `json:"appellationlibelle"`
+	CodeNAF                     string       `json:"codeNAF"`
+	Contact                     Contact      `json:"contact"`
+	DateActualisation           time.Time    `json:"dateActualisation"`
+	DateCreation                time.Time    `json:"dateCreation"`
+	Description                 string       `json:"description"`
+	DureeTravailLibelle         string       `json:"dureeTravailLibelle"`
+	DureeTravailLibelleConverti string       `json:"dureeTravailLibelleConverti"`
+	Entreprise                  Entreprise   `json:"entreprise"`
+	ExperienceCommentaire       string       `json:"experienceCommentaire"`
+	ExperienceExige             string       `json:"experienceExige"`
+	ExperienceLibelle           string       `json:"experienceLibelle"`
+	ID                          string       `json:"id"`
+	Intitule                    string       `json:"intitule"`
+	LieuTravail                 LieuTravail  `json:"lieuTravail"`
+	NatureContrat               string       `json:"natureContrat"`
+	NombrePostes                int          `json:"nombrePostes"`
+	OrigineOffre                OrigineOffre `json:"origineOffre"`
+	QualificationCode           string       `json:"qualificationCode"`
+	QualificationLibelle        string       `json:"qualificationLibelle"`
+	RomeCode                    string       `json:"romeCode"`
+	RomeLibelle                 string       `json:"romeLibelle"`
+	Salaire                     Salaire      `json:"salaire"`
+	SecteurActivite             string       `json:"secteurActivite"`
+	SecteurActiviteLibelle      string       `json:"secteurActiviteLibelle"`
+	TypeContrat                 string       `json:"typeContrat"`
+	TypeContratLibelle          string       `json:"typeContratLibelle"`
+}
+type Agence struct {
+	Courriel string `json:"courriel"`
+}
+type Contact struct {
+	Coordonnees1 string `json:"coordonnees1"`
+	Coordonnees2 string `json:"coordonnees2"`
+	Coordonnees3 string `json:"coordonnees3"`
+	Nom          string `json:"nom"`
+}
+type Entreprise struct {
+	EntrepriseAdaptee bool `json:"entrepriseAdaptee"`
+}
+type LieuTravail struct {
+	CodePostal string   `json:"codePostal"`
+	Commune    string   `json:"commune"`
+	Latitude   float64  `json:"latitude"`
+	Libelle    string   `json:"libelle"`
+	Longitude  float64  `json:"longitude"`
+	Location   Location `json:"location,omitempty"`
+}
+type Location struct {
+	Lat float64 `json:"lat"`
+	Lon float64 `json:"lon"`
+}
+type OrigineOffre struct {
+	Origine    string `json:"origine"`
+	UrlOrigine string `json:"urlOrigine"`
+}
+type Salaire struct {
+	Complement1 string `json:"complement1"`
+	Libelle     string `json:"libelle"`
+}
+type APIResponse struct {
+	Resultats []JobOffer `json:"resultats"`
 }
